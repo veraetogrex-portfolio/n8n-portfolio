@@ -1,0 +1,329 @@
+{
+  "name": "Создание бд",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        176,
+        0
+      ],
+      "id": "8b04c951-e3ef-46a0-aa33-24511697118e",
+      "name": "Get a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "mAioTXk14H1rupFs",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# Получаем текст из первого элемента\ntext = _input.first().json['content']\nchunk_size = 500  # слов\nwords = text.split()\nchunks = []\n\n# Получаем documentId если есть\ndocument_id = _input.first().json.get('documentId', 'unknown')\n\nfor i in range(0, len(words), chunk_size):\n    chunk = ' '.join(words[i:i + chunk_size])\n    chunks.append({\n        'text': chunk,\n        'metadata': {\n            'chunkIndex': i // chunk_size,\n            'source': 'google_doc',\n            'documentId': document_id\n        }\n    })\n\nreturn [{'json': chunk} for chunk in chunks]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "3138c621-55c9-4acc-811b-b605b5b9e786",
+      "name": "Code in Python (Beta)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.aimlapi.com/v1/embeddings",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n\"Authorization\": \"Bearer c8664f51bd7844158168f44d71d7b77e\",\n\"Content-Type\": \"application/json\",\n\"Accept\": \"*/*\"\n}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "text-embedding-3-small"
+            },
+            {
+              "name": "input",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "encoding_format",
+              "value": "float"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        864,
+        112
+      ],
+      "id": "65c7a2b1-462a-47c4-b333-bd3918be15ad",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://knowledge-base-9qnjd0e.svc.aped-4627-b74a.pinecone.io/vectors/upsert",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "pineconeApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vectors",
+              "value": "={{ $json.vectors }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "85ef204a-11a1-4e72-b9c5-35d229434338",
+      "name": "HTTP Request1",
+      "credentials": {
+        "pineconeApi": {
+          "id": "3TO0fybHPG9usCkY",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "81a490e2-4424-4fc2-bfc3-559a96c3c15c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// После Merge у нас есть ВСЕ данные в одном месте\nconst items = $input.all();\nconst vectors = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i].json;\n  \n  vectors.push({\n    id: `chunk_${item.metadata.chunkIndex}`,\n    values: item.data[0].embedding,\n    metadata: {\n      text: item.text,  // текст есть благодаря Merge!\n      chunkIndex: item.metadata.chunkIndex,\n      source: item.metadata.source\n    }\n  });\n}\n\nconsole.log(`Подготовлено векторов: ${vectors.length}`);\nreturn [{ json: { vectors: vectors } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "4486efc1-6a74-465b-ab61-70d34da60902",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем данные из Google Docs\nconst docData = $input.first().json;\nlet content = docData.content || '';\n\nconsole.log(`Исходная длина: ${content.length} символов`);\n\nif (!content || content.length === 0) {\n  throw new Error('Документ пустой!');\n}\n\n// Функция МАКСИМАЛЬНОЙ очистки - только сырой текст\nfunction cleanToRawText(text) {\n  return text\n    // 1. Убираем ВСЕ переносы строк, табы, возвраты каретки\n    .replace(/[\\r\\n\\t\\v\\f]/g, ' ')\n    \n    // 2. Убираем все виды кавычек (заменяем на пробел)\n    .replace(/[\"\"\"'''`´«»‹›„‟]/g, ' ')\n    \n    // 3. Убираем все тире и дефисы (заменяем на пробел)\n    .replace(/[—–−‐‑‒–—―]/g, ' ')\n    \n    // 4. Убираем все виды апострофов\n    .replace(/[''']/g, ' ')\n    \n    // 5. Убираем все скобки\n    .replace(/[(){}\\[\\]]/g, ' ')\n    \n    // 6. Убираем все слэши\n    .replace(/[\\\\\\/]/g, ' ')\n    \n    // 7. Убираем специальные символы\n    .replace(/[!@#$%^&*_+=|<>~]/g, ' ')\n    \n    // 8. Убираем множественные точки, запятые и другую пунктуацию\n    .replace(/\\.{2,}/g, '.')\n    .replace(/,{2,}/g, ',')\n    \n    // 9. Убираем все Unicode спецсимволы\n    .replace(/[\\u2000-\\u206F\\u2E00-\\u2E7F]/g, ' ')\n    \n    // 10. Убираем математические и технические символы\n    .replace(/[\\u2200-\\u22FF]/g, ' ')\n    \n    // 11. Убираем стрелки и прочее\n    .replace(/[\\u2190-\\u21FF]/g, ' ')\n    \n    // 12. Убираем эмодзи\n    .replace(/[\\u{1F600}-\\u{1F64F}]/gu, ' ')\n    .replace(/[\\u{1F300}-\\u{1F5FF}]/gu, ' ')\n    .replace(/[\\u{1F680}-\\u{1F6FF}]/gu, ' ')\n    .replace(/[\\u{1F1E0}-\\u{1F1FF}]/gu, ' ')\n    \n    // 13. Убираем все управляющие символы\n    .replace(/[\\x00-\\x1F\\x7F-\\x9F]/g, ' ')\n    \n    // 14. Заменяем ВСЕ множественные пробелы на один\n    .replace(/\\s{2,}/g, ' ')\n    \n    // 15. Trim\n    .trim();\n}\n\nconst cleanedContent = cleanToRawText(content);\n\n// Проверки\nconst checks = {\n  'Переносы строк (\\\\n)': cleanedContent.includes('\\n'),\n  'Возврат каретки (\\\\r)': cleanedContent.includes('\\r'),\n  'Табуляция (\\\\t)': cleanedContent.includes('\\t'),\n  'Обратный слэш (\\\\)': cleanedContent.includes('\\\\'),\n  'Кавычки (\"\")': cleanedContent.includes('\"') || cleanedContent.includes('\"') || cleanedContent.includes('\"'),\n  'Множественные пробелы': /\\s{2,}/.test(cleanedContent)\n};\n\nconsole.log('=== РЕЗУЛЬТАТ ОЧИСТКИ ===');\nconsole.log(`Было: ${content.length} символов`);\nconsole.log(`Стало: ${cleanedContent.length} символов`);\nconsole.log(`Удалено: ${content.length - cleanedContent.length} символов`);\nconsole.log('\\n=== ПРОВЕРКА ===');\nObject.entries(checks).forEach(([check, found]) => {\n  console.log(`${check}: ${found ? '❌ НАЙДЕНО!' : '✅ Чисто'}`);\n});\nconsole.log('\\n=== ПЕРВЫЕ 300 СИМВОЛОВ ===');\nconsole.log(cleanedContent.substring(0, 300));\n\nreturn [{\n  json: {\n    content: cleanedContent,\n    documentId: docData.documentId || 'unknown',\n    originalLength: content.length,\n    cleanedLength: cleanedContent.length,\n    removedChars: content.length - cleanedContent.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        0
+      ],
+      "id": "8463afb5-fbfc-4e9e-b050-0e1fd7b3b21e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "triggerOn": "specificFile",
+        "fileToWatch": {
+          "__rl": true,
+          "value": "https://docs.google.com/document/d/1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc/edit?usp=drive_link",
+          "mode": "url"
+        }
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4126b667-8f7f-4879-8234-6b9512e634cb",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "M2X8RjiMHuBoRKId",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://knowledge-base-9qnjd0e.svc.aped-4627-b74a.pinecone.io/vectors/delete",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "pineconeApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"deleteAll\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        352,
+        0
+      ],
+      "id": "9bf76184-86fd-49e7-8bf8-375191c0399a",
+      "name": "HTTP Request2",
+      "credentials": {
+        "pineconeApi": {
+          "id": "3TO0fybHPG9usCkY",
+          "name": "PineconeApi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get a document": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in Python (Beta)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in Python (Beta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3e7c005f-3e93-4836-a32d-c8ee82ae63e3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "613974814fa4b50ee3450fa4e94334e455a17a0cf40476feb106c89c95930d23"
+  },
+  "id": "PkEA6wN9cIldBIUF",
+  "tags": []
+}

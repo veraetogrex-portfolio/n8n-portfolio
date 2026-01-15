@@ -1,0 +1,253 @@
+{
+  "workflow_name": "RAG Knowledge Base - Input/Output Examples",
+  "description": "Примеры данных на каждом этапе воркфлоу",
+  
+  "stage_1_google_drive_trigger": {
+    "description": "Триггер срабатывает - документ обновлен",
+    "output": {
+      "event": "file_updated",
+      "file_id": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc",
+      "timestamp": "2026-01-15T10:30:00Z"
+    }
+  },
+
+  "stage_2_get_document": {
+    "description": "Получен полный текст из Google Docs",
+    "output": {
+      "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc",
+      "title": "Справка по n8n",
+      "content": "# n8n - Платформа низкоуровневой автоматизации\n\nn8n это мощный инструмент для автоматизации рабочих процессов. Вы можете создавать workflows без знания программирования.\n\n## Установка\n\nДля установки n8n используйте Docker...\n\n[Продолжение текста примерно 5000 слов...]",
+      "mimeType": "application/vnd.google-apps.document"
+    }
+  },
+
+  "stage_3_delete_from_pinecone": {
+    "description": "Отправлен запрос удаления всех старых векторов",
+    "request": {
+      "method": "POST",
+      "url": "https://knowledge-base-9qnjd0e.svc.aped-4627-b74a.pinecone.io/vectors/delete",
+      "body": {
+        "deleteAll": true
+      }
+    },
+    "response": {
+      "deleteAll": true,
+      "deletedCount": 10
+    }
+  },
+
+  "stage_4_text_cleaning": {
+    "description": "Текст очищен от спецсимволов",
+    "input": {
+      "content": "n8n - это  \"низкоуровневая\"  платформа  →  автоматизации!\nДля установки: используй Docker™\n\nПроблема™: текст с  множественными  пробелами"
+    },
+    "output": {
+      "content": "n8n это низкоуровневая платформа автоматизации Для установки используй Docker Проблема текст с множественными пробелами",
+      "originalLength": 145,
+      "cleanedLength": 105,
+      "removedChars": 40,
+      "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+    }
+  },
+
+  "stage_5_chunking": {
+    "description": "Текст разбит на чанки по 500 слов",
+    "document_stats": {
+      "total_words": 2500,
+      "chunk_size": 500,
+      "total_chunks": 5
+    },
+    "chunks": [
+      {
+        "text": "n8n это низкоуровневая платформа для автоматизации вы можете создавать workflows без знания программирования установка для установки n8n используйте docker скачайте образ с docker hub запустите контейнер с правильными портами и переменными окружения основные концепции workflows в n8n представляют собой визуальное представление ваших автоматизаций каждый workflow состоит из узлов nodes которые выполняют определенные действия интеграции n8n поддерживает более 300 приложений и сервисов вы можете легко интегрировать slack email google sheets api и многое другое примеры использования пример 1 синхронизация данных между приложениями вы можете настроить workflow который будет автоматически синхронизировать данные между вашей базой данных и облачным хранилищем пример 2 автоматическая отправка уведомлений при возникновении определенных событий workflow может отслеживать события и отправлять уведомления в slack или по email...",
+        "metadata": {
+          "chunkIndex": 0,
+          "source": "google_doc",
+          "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+        }
+      },
+      {
+        "text": "пример 3 обработка данных в реальном времени вы можете создать workflow который будет обрабатывать входящие данные в реальном времени например обрабатывать веб-хуки от slack или github best practices для разработки workflows следуйте этим рекомендациям при разработке ваших workflows используйте описательные имена для узлов это поможет вам и другим быстро разобраться в workflow добавляйте комментарии и документацию к сложным частям workflow тестируйте каждый узел отдельно перед тем как запустить весь workflow используйте переменные окружения для хранения чувствительных данных таких как api ключи используйте обработку ошибок в ваших workflows чтобы gracefully обрабатывать ошибки...",
+        "metadata": {
+          "chunkIndex": 1,
+          "source": "google_doc",
+          "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+        }
+      },
+      {
+        "text": "[chunkIndex 2 - 500 слов...]",
+        "metadata": {
+          "chunkIndex": 2,
+          "source": "google_doc",
+          "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+        }
+      },
+      {
+        "text": "[chunkIndex 3 - 500 слов...]",
+        "metadata": {
+          "chunkIndex": 3,
+          "source": "google_doc",
+          "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+        }
+      },
+      {
+        "text": "[chunkIndex 4 - 500 слов...]",
+        "metadata": {
+          "chunkIndex": 4,
+          "source": "google_doc",
+          "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+        }
+      }
+    ]
+  },
+
+  "stage_6_generate_embeddings": {
+    "description": "Для каждого чанка сгенерирован эмбеддинг",
+    "request_example": {
+      "method": "POST",
+      "url": "https://api.aimlapi.com/v1/embeddings",
+      "headers": {
+        "Authorization": "Bearer c8664f51bd7844158168f44d71d7b77e",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "model": "text-embedding-3-small",
+        "input": "n8n это низкоуровневая платформа для автоматизации... [500 слов]",
+        "encoding_format": "float"
+      }
+    },
+    "response_example": {
+      "object": "list",
+      "data": [
+        {
+          "object": "embedding",
+          "index": 0,
+          "embedding": [
+            0.0234375,
+            -0.03271484375,
+            0.00048828125,
+            0.0126953125,
+            -0.01171875,
+            0.034912109375,
+            0.0009765625,
+            -0.021484375,
+            -0.00994873046875,
+            0.017578125,
+            "... ещё 1526 чисел float32 ..."
+          ]
+        }
+      ],
+      "model": "text-embedding-3-small",
+      "usage": {
+        "prompt_tokens": 142,
+        "total_tokens": 142
+      }
+    }
+  },
+
+  "stage_7_merge": {
+    "description": "Объединение чанков и эмбеддингов",
+    "merged_item_example": {
+      "text": "n8n это низкоуровневая платформа... [500 слов]",
+      "metadata": {
+        "chunkIndex": 0,
+        "source": "google_doc",
+        "documentId": "1ghCImc38YBDRsV2wz_Pv9eaZGTNDHzPgKbULqIOkpXc"
+      },
+      "data": [
+        {
+          "object": "embedding",
+          "embedding": [0.0234375, -0.03271484375, "... 1534 ещё значений"]
+        }
+      ]
+    }
+  },
+
+  "stage_8_format_vectors": {
+    "description": "Форматирование в формат Pinecone",
+    "output_example": {
+      "vectors": [
+        {
+          "id": "chunk_0",
+          "values": [0.0234375, -0.03271484375, "... 1534 значений"],
+          "metadata": {
+            "text": "n8n это низкоуровневая платформа... [500 слов]",
+            "chunkIndex": 0,
+            "source": "google_doc"
+          }
+        },
+        {
+          "id": "chunk_1",
+          "values": [0.012345, -0.054321, "... 1534 значений"],
+          "metadata": {
+            "text": "пример 3 обработка данных... [500 слов]",
+            "chunkIndex": 1,
+            "source": "google_doc"
+          }
+        },
+        "... ещё 3 вектора..."
+      ]
+    }
+  },
+
+  "stage_9_upsert_to_pinecone": {
+    "description": "Загрузка векторов в Pinecone",
+    "request": {
+      "method": "POST",
+      "url": "https://knowledge-base-9qnjd0e.svc.aped-4627-b74a.pinecone.io/vectors/upsert",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-API-KEY": "pc-..."
+      },
+      "body": {
+        "vectors": "[ 5 vectors as shown above ]"
+      }
+    },
+    "response": {
+      "upsertedCount": 5
+    }
+  },
+
+  "final_state": {
+    "description": "Финальное состояние - база готова к запросам",
+    "pinecone_database": {
+      "vectors_count": 5,
+      "total_storage": "~31KB",
+      "ready_for_queries": true,
+      "example_query": {
+        "description": "Если теперь пользователь спросит 'Как установить n8n?'",
+        "steps": [
+          "Генерируется эмбеддинг вопроса",
+          "Pinecone ищет похожие векторы",
+          "Найдены chunk_0 и chunk_1 с высокой релевантностью",
+          "Их текст передается в LLM как контекст",
+          "LLM генерирует ответ на основе найденного контекста"
+        ]
+      }
+    }
+  },
+
+  "statistics": {
+    "document_stats": {
+      "word_count": 2500,
+      "char_count": "~15KB",
+      "processing_time": "~2.5 sec"
+    },
+    "chunking_stats": {
+      "chunk_size": "500 words",
+      "chunk_count": 5,
+      "overlap": "none (можно добавить)"
+    },
+    "embedding_stats": {
+      "model": "text-embedding-3-small",
+      "vector_dimension": 1536,
+      "cost_per_1M_tokens": "$0.02",
+      "estimated_cost": "$0.0028"
+    },
+    "storage_stats": {
+      "vector_storage": "~31KB (5 vectors × 6.1KB)",
+      "metadata_storage": "~2KB",
+      "total": "~33KB in Pinecone"
+    }
+  }
+}
