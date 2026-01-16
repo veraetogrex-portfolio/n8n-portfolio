@@ -308,10 +308,9 @@ METABASE_TOKEN=...
 
 ## 📞 Контакты
 
-- **Email:** your.email@example.com
-- **LinkedIn:** linkedin.com/in/yourprofile
-- **Telegram:** @yourtg
-- **GitHub:** github.com/yourusername
+- **Email:** Vyalarionov@yandex.ru
+- **Telegram:** @veraetogrex
+- **GitHub:** github.com/veraetogrex-portfolio
 
 ---
 
@@ -373,8 +372,4 @@ Workflows → Import → projects/01-rag-chatbot/workflow.json
 
 ---
 
-**Версия:** 1.0.0 (RAG Chatbot готово, остальные в разработке)
-**Обновлено:** 15 января 2026
-**Статус:** Active Development 🚀
 
-Made with ❤️ for automation lovers
