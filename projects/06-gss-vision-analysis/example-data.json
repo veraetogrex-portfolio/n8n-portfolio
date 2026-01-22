@@ -1,0 +1,28 @@
+{
+  "workflows": {
+    "gss01_vision_analysis": {
+      "input": {
+        "property_id": "550e8400-e29b-41d4-a716-446655440000",
+        "image_url": "https://example.com/render.jpg"
+      },
+      "output": {
+        "job_id": "...",
+        "status": "CLASSIFIED",
+        "technical_tags": ["kitchen", "modern"]
+      }
+    },
+    "gss02_retry_logic": {
+      "input": {
+        "job_id": "...",
+        "qc_result": {
+          "verdict": "FAIL",
+          "suggested_fix": "increase_structure_strength"
+        }
+      },
+      "output": {
+        "attempt_number": 2,
+        "parameters_modified": true
+      }
+    }
+  }
+}
